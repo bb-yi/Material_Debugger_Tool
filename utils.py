@@ -15,24 +15,20 @@ _draw_handler = None
 
 
 def import_node_group():
-    """核心函数：从插件目录导入节点组并设为保护"""
+    """从插件目录导入节点组并设为保护"""
 
-    # 1. 检查当前文件是否已经存在该节点组
     if NODE_GROUP_NAME in bpy.data.node_groups:
-        # 如果已存在，确保开启保护（Fake User）
         bpy.data.node_groups[NODE_GROUP_NAME].use_fake_user = True
         return
 
-    # 2. 构造资源文件的绝对路径
     addon_dir = os.path.dirname(__file__)
     filepath = os.path.join(addon_dir, *ASSET_RELATIVE_PATH)
 
-    # 检查文件是否存在
     if not os.path.exists(filepath):
         print(f"警告: 插件资源文件不存在 -> {filepath}")
         return
 
-    # 3. 从 .blend 文件中追加 (Append) 节点组
+    # 从 .blend 文件中追加 (Append) 节点组
     try:
         with bpy.data.libraries.load(filepath, link=False) as (data_from, data_to):
             if NODE_GROUP_NAME in data_from.node_groups:
@@ -41,8 +37,6 @@ def import_node_group():
                 print(f"错误: 在 assets.blend 中未找到名为 '{NODE_GROUP_NAME}' 的节点组")
                 return
 
-        # 4. 导入后设置 Fake User
-        # 注意：只有在 with 语句结束后，data_to 中的内容才会真正加载进当前 bpy.data
         new_group = bpy.data.node_groups.get(NODE_GROUP_NAME)
         if new_group:
             new_group.use_fake_user = True
@@ -53,7 +47,7 @@ def import_node_group():
 
 
 def save_settings(context):
-    print("保存设置")
+    # print("保存设置")
     props = context.scene.mat_debug_tool_properties
     # 保存视图实时合成器开启状态
     area = get_max_area()
@@ -81,12 +75,12 @@ def save_settings(context):
             view_node_state["alpha"] = view_node.inputs[1].links[0].from_node.name if view_node.inputs[1].is_linked else ""
             view_node_state["alpha_from_socket"] = view_node.inputs[1].links[0].from_socket.name if view_node.inputs[1].is_linked else ""
     props.view_node_link_socket = json.dumps(view_node_state, ensure_ascii=False, indent=None)
-    print("保存的视图节点状态:", props.view_node_link_socket)
+    # print("保存的视图节点状态:", props.view_node_link_socket)
     pass
 
 
 def recovery_settings(context):
-    print("恢复设置")
+    # print("恢复设置")
     props = context.scene.mat_debug_tool_properties
     # 恢复视图实时合成器开启状态
     for area in context.screen.areas:

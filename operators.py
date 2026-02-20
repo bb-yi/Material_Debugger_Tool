@@ -16,23 +16,18 @@ class VIEW3D_OT_TestOperator(bpy.types.Operator):
 
 
 class NODE_OT_connect_to_aov(bpy.types.Operator):
-    """Shift+Alt+Click: 循环连接节点输出到 AOV"""
 
     bl_idname = "node.connect_to_aov"
     bl_label = "Connect to AOV"
     bl_options = {"REGISTER", "UNDO"}
-    bl_description = "Shift+Alt+Click: 循环连接节点输出到 AOV"
 
     @classmethod
     def poll(cls, context):
         space = context.space_data
-        # 1. 必须是节点编辑器
-        # 2. 必须是着色器节点树 (ShaderNodeTree)
-        # 3. 必须已经加载了节点树 (即编辑器不是空的)
+        # 是否在节点编辑器的材质节点树中,并且是对象材质
         return space.type == "NODE_EDITOR" and space.tree_type == "ShaderNodeTree" and space.node_tree is not None and space.shader_type == "OBJECT"
 
     def invoke(self, context, event):
-        # 1. 尝试选中鼠标下的节点
         try:
             bpy.ops.node.select(location=(event.mouse_region_x, event.mouse_region_y), extend=False)
         except RuntimeError:
@@ -42,12 +37,13 @@ class NODE_OT_connect_to_aov(bpy.types.Operator):
         return self.execute(context)
 
     def execute(self, context):
-        # print("执行")
         tree = context.space_data.node_tree
         active_node = context.active_node
         if not active_node:
+            self.report({"WARNING"}, translations("No active node"))
             return {"CANCELLED"}
         if not active_node.select:
+            self.report({"WARNING"}, translations("No active node"))
             return {"CANCELLED"}
         props = context.scene.mat_debug_tool_properties
         if not props.open_debug:
@@ -62,46 +58,33 @@ class NODE_OT_connect_to_aov(bpy.types.Operator):
         screenUV_node = self.get_or_create_screenUV_aov_node(tree)
         # 设置合成器
         self.setup_compositor(context)
-        # 3.1 获取当前已连接的端口索引（如果已连接）
+        # 连接节点
         current_index = -1
-
-        # 遍历所有连线，看是否有线是从 active_node 连到 aov_node 的
         for link in tree.links:
             if link.to_node == aov_node and link.from_node == active_node:
-                # 找到了现有的连接，获取它在 active_node 输出列表中的索引
-                # 注意：我们要找的是“输出插槽”的索引
                 for i, socket in enumerate(active_node.outputs):
                     if socket == link.from_socket:
                         current_index = i
                         break
-                # 找到一个就可以退出了（假设只连了一根线）
                 if current_index != -1:
                     break
 
-        # 3.2 寻找下一个有效的插槽
-        # 我们从 current_index + 1 开始找，如果超出了长度就取模回到 0
+        # 如果超出了长度就取模回到0
         num_outputs = len(active_node.outputs)
         if num_outputs == 0:
-            self.report({"WARNING"}, "节点没有输出端口")
+            self.report({"WARNING"}, translations("Node has no output sockets"))
             return {"CANCELLED"}
 
         target_socket = None
-
-        # 最多尝试遍历一圈 (num_outputs 次)
         for i in range(1, num_outputs + 1):
-            # 计算下一个索引 (循环)
             check_index = (current_index + i) % num_outputs
             socket = active_node.outputs[check_index]
-
-            # 过滤条件：
-            # 1. 插槽必须启用 (enabled)
-            # 2. 插槽不能是 BSDF/Shader 类型 (AOV 只能接数据，不能接 Shader)
             if socket.enabled and socket.type != "SHADER":
                 target_socket = socket
                 break
 
         if not target_socket:
-            self.report({"WARNING"}, "不支持shader类型节点")
+            self.report({"WARNING"}, translations("Shader type nodes are not supported"))
             return {"CANCELLED"}
 
         # 创建连接
@@ -189,12 +172,6 @@ class NODE_OT_connect_to_aov(bpy.types.Operator):
         new_aov.type = "COLOR"
 
     def setup_compositor(self, context):
-        """
-        子函数：配置合成器
-        1. 开启实时合成器
-        2. 记录原始连接状态
-        3. 链接 AOV -> MaterialDebuggerTool -> Composite
-        """
         scene = context.scene
 
         # 1. 确保启用合成节点
@@ -248,7 +225,7 @@ class NODE_OT_connect_to_aov(bpy.types.Operator):
             self.ensure_view_layer_aov(context)
             view_aov_socket = rl_node.outputs.get(AOV_NAME)
         if not view_aov_socket:
-            self.report({"WARNING"}, f"渲染层节点未找到 AOV 通道 '{AOV_NAME}'")
+            self.report({"WARNING"}, translations("Render layer node AOV pass not found: " + AOV_NAME))
             return
 
         view_screenuv_socket = rl_node.outputs.get(AOV_SCREENUV_NAME)
@@ -256,13 +233,13 @@ class NODE_OT_connect_to_aov(bpy.types.Operator):
             self.ensure_view_layer_screenUV_aov(context)
             view_screenuv_socket = rl_node.outputs.get(AOV_SCREENUV_NAME)
         if not view_screenuv_socket:
-            self.report({"WARNING"}, f"渲染层节点未找到 AOV 通道 '{AOV_SCREENUV_NAME}'")
+            self.report({"WARNING"}, translations("Render layer node AOV pass not found: " + AOV_SCREENUV_NAME))
 
         tool_node_val_socket = tool_node.inputs.get(tool_node.inputs[0].name)
         tool_node_uv_socket = tool_node.inputs.get(tool_node.inputs[1].name)
         tool_node_output_socket = tool_node.outputs.get(tool_node.outputs[0].name)
         if not tool_node_val_socket or not tool_node_uv_socket or not tool_node_output_socket:
-            self.report({"WARNING"}, "资产错误")
+            self.report({"WARNING"}, translations("Asset error"))
             return
         # 创建连接,判断原本是否已经连接,尽量降低合成器刷新
         if not tool_node_val_socket.is_linked or tool_node_val_socket.links[0].from_socket != view_aov_socket:
@@ -315,27 +292,20 @@ class NODE_OT_mouse_pos_tracker(bpy.types.Operator):
         return {"PASS_THROUGH"}
 
     def update_node_position(self, context, event):
-        # 1. 获取最大的 3D 视图绘制区域
         target_region = get_max_3d_region(context)
         if not target_region:
             return
 
-        # 2. 将全局鼠标坐标转换为相对于该 3D 视图的局部坐标
-        # event.mouse_x/y 是相对于整个 Blender 软件窗口的绝对坐标
-        # target_region.x/y 是该 3D 视图在整个软件窗口中的起点坐标
         rel_x = event.mouse_x - target_region.x
         rel_y = event.mouse_y - target_region.y
 
-        # 3. 计算归一化比例 (0.0 到 1.0)
         norm_x = rel_x / target_region.width
         norm_y = rel_y / target_region.height
 
-        # 4. 限制在 0-1 之间（如果鼠标移出了 3D 视图范围，将其锁定在边缘）
         out_of_bounds = rel_x < 0 or rel_x > target_region.width or rel_y < 0 or rel_y > target_region.height
         norm_x = max(0.0, min(1.0, norm_x))
         norm_y = max(0.0, min(1.0, norm_y))
 
-        # --- 在这里添加你的写入节点的逻辑 ---
         node = get_compositor_node(context)
         if not node:
             return

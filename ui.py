@@ -47,49 +47,58 @@ class NODE_PT_material_debugger_tool(bpy.types.Panel):
         if context.scene.render.engine != "BLENDER_EEVEE_NEXT":
             col = layout.column(align=True)
             col.alert = True
-            col.label(text="仅支持在EEVEE NEXT中使用", icon="ERROR")
+            col.label(text="Only supported in EEVEE NEXT", icon="ERROR")
             return
 
         addon_props = context.scene.mat_debug_tool_properties
         col = layout.column(align=True)
         # col.operator("view3d.test_operator", text="Test Operator")
-        col.prop(addon_props, "open_debug", text="Open Debug", icon="SHADERFX")
+        box = col.box()
+        box.label(text=translations("Shift + Alt + LMB on node to preview"), icon="INFO")
 
+        # col1 = col.row(align=True)
+        # col1.alert = True
+        # active_node = context.active_node
+        # if not active_node.select:
+        #     col1.label(text=translations("Please select a node"), icon="ERROR")
+        if not addon_props.open_debug:
+            return
+        col.prop(addon_props, "open_debug", text=translations("Open Debug"), icon="SHADERFX")
         target_node = get_compositor_node(context)
 
         if not target_node:
             return
         # 遍历所有输入端口
         prop = context.scene.mat_debug_tool_properties.node_properties
-        col.operator("node.mouse_pos_tracker", text="pointer_mode", depress=NODE_OT_mouse_pos_tracker._running, icon="CURSOR")
+        col.operator("node.mouse_pos_tracker", text=translations("Pointer Mode"), depress=NODE_OT_mouse_pos_tracker._running, icon="CURSOR")
         if not prop.pointer_mode:
             box = col.box()
             col = box.column(align=True)
             # col.label(text="Show Model:")
             col.prop(prop, "show_model", text="")
-            col.prop(prop, "show_frame", text="Show Frame", icon="META_PLANE")
-            col.prop(prop, "show_base_color", text="Show Base Color", icon="NODE_MATERIAL")
-            self.draw_socket_prop(col, target_node, 2)  # 缩放
-            self.draw_socket_prop(col, target_node, 3)  # 缩放x
-            self.draw_socket_prop(col, target_node, 4)  # 缩放y
-            self.draw_socket_prop(col, target_node, 5)  # 数字x缩放
-            self.draw_socket_prop(col, target_node, 6)  # 数字y缩放
+            col.prop(prop, "show_frame", text=translations("Show Frame"), icon="META_PLANE")
+            col.prop(prop, "show_base_color", text=translations("Show Base Color"), icon="NODE_MATERIAL")
+            self.draw_socket_prop(col, target_node, 2, text=translations("Scale"))  # 缩放
+            self.draw_socket_prop(col, target_node, 3, text=translations("Scale X"))  # 缩放x
+            self.draw_socket_prop(col, target_node, 4, text=translations("Scale Y"))  # 缩放y
+            self.draw_socket_prop(col, target_node, 5, text=translations("Number X Scale"))  # 数字x缩放
+            self.draw_socket_prop(col, target_node, 6, text=translations("Number Y Scale"))  # 数字y缩放
         else:
             box = col.box()
             col = box.column(align=True)
-            col.label(text="Show Model:")
+            # col.label(text="Show Model:")
             col.prop(prop, "show_model", text="")
-            self.draw_socket_prop(col, target_node, 5)  # 数字x缩放
-            self.draw_socket_prop(col, target_node, 6)  # 数字y缩放
-            self.draw_socket_prop(col, target_node, 14)  # 指针大小
-            self.draw_socket_prop(col, target_node, 15)  # 指针中间缩放
-            self.draw_socket_prop(col, target_node, 16)  # 指针文字缩放
-            self.draw_socket_prop(col, target_node, 17)  # 指针文字X
-            self.draw_socket_prop(col, target_node, 18)  # 指针文字Y
+            self.draw_socket_prop(col, target_node, 14, text=translations("Pointer Size"))  # 指针大小
+            self.draw_socket_prop(col, target_node, 15, text=translations("Internal Scaling"))  # 指针中间缩放
+            self.draw_socket_prop(col, target_node, 16, text=translations("Text Scale"))  # 指针文字缩放
+            self.draw_socket_prop(col, target_node, 5, text=translations("Number X Scale"))  # 数字x缩放
+            self.draw_socket_prop(col, target_node, 6, text=translations("Number Y Scale"))  # 数字y缩放
+            self.draw_socket_prop(col, target_node, 17, text=translations("Number X Offset"))  # 指针文字X
+            self.draw_socket_prop(col, target_node, 18, text=translations("Number Y Offset"))  # 指针文字Y
 
     def draw_socket_prop(self, layout, node, index, text=None, icon="NONE", as_bool=False):
         if index < 0 or index >= len(node.inputs):
-            layout.label(text=f"索引错误: {index}", icon="ERROR")
+            layout.label(text=f"index out of range: {index}", icon="ERROR")
             return
 
         socket = node.inputs[index]
