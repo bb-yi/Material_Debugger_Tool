@@ -28,7 +28,7 @@ from . import operators
 from . import ui
 from .i18n import translations_dict
 from . import property
-from .utils import import_node_group
+from .utils import import_node_group, _draw_handler
 from bpy.app.handlers import persistent
 from .operators import NODE_OT_connect_to_aov
 
@@ -55,10 +55,9 @@ def register():
     wm = bpy.context.window_manager
     kc = wm.keyconfigs.addon
     if kc:
-        # 在 "Node Editor" 全局上下文中注册
         km = kc.keymaps.new(name="Node Editor", space_type="NODE_EDITOR")
 
-        # 配置: Shift + Alt + 左键 (LEFTMOUSE)
+        # 配置: Shift + Alt + 左键
         kmi = km.keymap_items.new(NODE_OT_connect_to_aov.bl_idname, type="LEFTMOUSE", value="PRESS", shift=True, alt=True)
         addon_keymaps.append((km, kmi))
     bpy.app.timers.register(import_node_group, first_interval=0.1)
@@ -79,5 +78,9 @@ def unregister():
     for km, kmi in addon_keymaps:
         km.keymap_items.remove(kmi)
     addon_keymaps.clear()
+    global _draw_handler
+    if _draw_handler is not None:
+        bpy.types.SpaceView3D.draw_handler_remove(_draw_handler, "WINDOW")
+        _draw_handler = None
     if load_post_handler in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.remove(load_post_handler)

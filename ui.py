@@ -2,6 +2,7 @@ import bpy
 from .utils import *
 from .i18n import translations
 from . import bl_info
+from .operators import NODE_OT_mouse_pos_tracker
 
 # --- UI Panel ---
 
@@ -24,10 +25,51 @@ class NODE_PT_material_debugger_tool(bpy.types.Panel):
         layout = self.layout
 
         addon_props = context.scene.mat_debug_tool_properties
+        col = layout.column(align=True)
+        col.operator("view3d.test_operator", text="Test Operator")
+        col.prop(addon_props, "open_debug", text="Open Debug", icon="RESTRICT_VIEW_OFF" if addon_props.open_debug else "RESTRICT_VIEW_ON")
 
-        layout.operator("view3d.test_operator", text="Test Operator")
+        target_node = get_compositor_node(context)
 
-        layout.prop(addon_props, "open_debug", text="Open Debug", icon="RESTRICT_VIEW_OFF" if addon_props.open_debug else "RESTRICT_VIEW_ON")
+        if not target_node:
+            return
+        # 遍历所有输入端口
+        prop = context.scene.mat_debug_tool_properties.node_properties
+        col.operator("node.mouse_pos_tracker", text="pointer_mode", depress=NODE_OT_mouse_pos_tracker._running, icon="CURSOR" if NODE_OT_mouse_pos_tracker._running else "MOUSE_LMB")
+
+        col.label(text=f"{target_node.name}", icon="MOD_UVPROJECT")
+
+        box = col.box()
+        col = box.column(align=True)
+        self.draw_socket_prop(col, target_node, 2)
+        self.draw_socket_prop(col, target_node, 3)
+        self.draw_socket_prop(col, target_node, 4)
+        self.draw_socket_prop(col, target_node, 5)
+        self.draw_socket_prop(col, target_node, 6)
+        col.prop(prop, "show_frame", text="Show Frame", icon="RESTRICT_VIEW_OFF" if prop.show_frame else "RESTRICT_VIEW_ON")
+        col.prop(prop, "show_base_color", text="Show Base Color", icon="RESTRICT_VIEW_OFF" if prop.show_base_color else "RESTRICT_VIEW_ON")
+        col.label(text="Show Model:")
+        col.prop(prop, "show_model", text="")
+
+    def draw_socket_prop(self, layout, node, index, text=None, icon="NONE", as_bool=False):
+        if index < 0 or index >= len(node.inputs):
+            layout.label(text=f"索引错误: {index}", icon="ERROR")
+            return
+
+        socket = node.inputs[index]
+
+        if not socket.enabled:
+            return
+
+        if socket.is_linked:
+            layout.label(text=text if text else socket.name, icon="LINKED")
+            return
+
+        display_text = text if text is not None else socket.name
+        row = layout.row(align=True)
+        if icon != "NONE":
+            row.label(icon=icon)
+        row.prop(socket, "default_value", text=display_text)
 
 
 cls = [

@@ -11,7 +11,7 @@ class VIEW3D_OT_TestOperator(bpy.types.Operator):
 
     def execute(self, context):
         state = bpy.data.materials["Material"].node_tree.nodes["Texture Coordinate"].type
-        props = context.scene.pixel_debug_properties
+        props = context.scene.mat_debug_tool_properties
         # for area in context.screen.areas:
         #     if area.type == "VIEW_3D":
         #         for space in area.spaces:
@@ -55,7 +55,9 @@ class NODE_OT_connect_to_aov(bpy.types.Operator):
             return {"CANCELLED"}
         if not active_node.select:
             return {"CANCELLED"}
-
+        props = context.scene.mat_debug_tool_properties
+        if not props.open_debug:
+            props.open_debug = True
         # 创建视图层AOV
         self.ensure_view_layer_aov(context)
         # 创建屏幕UV AOV
@@ -288,9 +290,100 @@ class NODE_OT_connect_to_aov(bpy.types.Operator):
                         space.shading.use_compositor = "ALWAYS"
 
 
+def get_max_3d_region(context):
+    """获取当前屏幕上面积最大的 3D 视图的绘制区域 (WINDOW)"""
+    target_area = None
+    max_size = 0
+
+    for area in context.screen.areas:
+        if area.type == "VIEW_3D":
+            size = area.width * area.height
+            if size > max_size:
+                max_size = size
+                target_area = area
+
+    if target_area:
+        # 遍历该 Area 的所有子 Region，找到真正用于显示 3D 画面的 WINDOW 区域
+        for region in target_area.regions:
+            if region.type == "WINDOW":
+                return region
+    return None
+
+
+class NODE_OT_mouse_pos_tracker(bpy.types.Operator):
+    """实时追踪鼠标位置并传给合成器节点"""
+
+    bl_idname = "node.mouse_pos_tracker"
+    bl_label = "Track Mouse Position"
+
+    _running = False
+
+    def modal(self, context, event):
+        props = context.scene.mat_debug_tool_properties
+        if not NODE_OT_mouse_pos_tracker._running or not props.open_debug:
+            self.cancel(context)
+            return {"FINISHED"}
+        if event.type == "MOUSEMOVE":
+            self.update_node_position(context, event)
+
+        return {"PASS_THROUGH"}
+
+    def update_node_position(self, context, event):
+        # 1. 获取最大的 3D 视图绘制区域
+        target_region = get_max_3d_region(context)
+        if not target_region:
+            return
+
+        # 2. 将全局鼠标坐标转换为相对于该 3D 视图的局部坐标
+        # event.mouse_x/y 是相对于整个 Blender 软件窗口的绝对坐标
+        # target_region.x/y 是该 3D 视图在整个软件窗口中的起点坐标
+        rel_x = event.mouse_x - target_region.x
+        rel_y = event.mouse_y - target_region.y
+
+        # 3. 计算归一化比例 (0.0 到 1.0)
+        norm_x = rel_x / target_region.width
+        norm_y = rel_y / target_region.height
+
+        # 4. 限制在 0-1 之间（如果鼠标移出了 3D 视图范围，将其锁定在边缘）
+        norm_x = max(0.0, min(1.0, norm_x))
+        norm_y = max(0.0, min(1.0, norm_y))
+
+        # --- 在这里添加你的写入节点的逻辑 ---
+        node = get_compositor_node(context)
+        node.inputs[12].default_value = norm_x
+        node.inputs[13].default_value = norm_y
+        # print(f"3D View Normalized Pos: ({norm_x:.3f}, {norm_y:.3f})")
+
+    def invoke(self, context, event):
+        props = context.scene.mat_debug_tool_properties.node_properties
+        if NODE_OT_mouse_pos_tracker._running:
+            NODE_OT_mouse_pos_tracker._running = False
+            props.pointer_mode = False
+            if context.area:
+                context.area.tag_redraw()
+            return {"FINISHED"}
+
+        NODE_OT_mouse_pos_tracker._running = True
+        props.pointer_mode = True
+        context.window_manager.modal_handler_add(self)
+
+        if context.area:
+            context.area.tag_redraw()
+
+        # print("鼠标追踪已启动")
+        return {"RUNNING_MODAL"}
+
+    def cancel(self, context):
+        NODE_OT_mouse_pos_tracker._running = False
+        if context.area:
+            context.area.tag_redraw()
+        # print("鼠标追踪已关闭")
+
+
 classes = [
     VIEW3D_OT_TestOperator,
     NODE_OT_connect_to_aov,
+    NODE_OT_mouse_pos_tracker,
 ]
 
 
