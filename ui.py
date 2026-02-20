@@ -3,14 +3,35 @@ from .utils import *
 from .i18n import translations
 from . import bl_info
 from .operators import NODE_OT_mouse_pos_tracker
+import rna_keymap_ui
 
-# --- UI Panel ---
+
+class MatDebugToolPreferences(bpy.types.AddonPreferences):
+    bl_idname = __package__
+
+    def draw(self, context):
+        layout = self.layout
+        row = layout.row()
+        row.label(text=translations("Material Debugger Tool"), icon="SHADERFX")
+        row.label(text=f"Version: {bl_info['version'][0]}.{bl_info['version'][1]}.{bl_info['version'][2]}")
+        row.label(text="BY : LEDingQ", icon="FUND")
+        layout.label(text="快捷键设置 (Keymap Settings):", icon="KEYINGSET")
+        wm = context.window_manager
+        kc = wm.keyconfigs.user
+        if kc:
+            km = kc.keymaps.get("Node Editor")
+            if km:
+                for kmi in km.keymap_items:
+                    if kmi.idname == "node.connect_to_aov":
+                        layout.context_pointer_set("keymap", km)
+                        rna_keymap_ui.draw_kmi([], kc, km, kmi, layout, 0)
+                        break
 
 
 class NODE_PT_material_debugger_tool(bpy.types.Panel):
     """Material Debugger Tool 面板"""
 
-    bl_label = "Material Debugger"
+    bl_label = "Material Debugger Tool"
     bl_idname = "NODE_PT_material_debugger_tool"
     bl_space_type = "NODE_EDITOR"
     bl_region_type = "UI"
@@ -23,11 +44,16 @@ class NODE_PT_material_debugger_tool(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
+        if context.scene.render.engine != "BLENDER_EEVEE_NEXT":
+            col = layout.column(align=True)
+            col.alert = True
+            col.label(text="仅支持在EEVEE NEXT中使用", icon="ERROR")
+            return
 
         addon_props = context.scene.mat_debug_tool_properties
         col = layout.column(align=True)
-        col.operator("view3d.test_operator", text="Test Operator")
-        col.prop(addon_props, "open_debug", text="Open Debug", icon="RESTRICT_VIEW_OFF" if addon_props.open_debug else "RESTRICT_VIEW_ON")
+        # col.operator("view3d.test_operator", text="Test Operator")
+        col.prop(addon_props, "open_debug", text="Open Debug", icon="SHADERFX")
 
         target_node = get_compositor_node(context)
 
@@ -35,14 +61,14 @@ class NODE_PT_material_debugger_tool(bpy.types.Panel):
             return
         # 遍历所有输入端口
         prop = context.scene.mat_debug_tool_properties.node_properties
-        col.operator("node.mouse_pos_tracker", text="pointer_mode", depress=NODE_OT_mouse_pos_tracker._running, icon="CURSOR" if NODE_OT_mouse_pos_tracker._running else "MOUSE_LMB")
+        col.operator("node.mouse_pos_tracker", text="pointer_mode", depress=NODE_OT_mouse_pos_tracker._running, icon="CURSOR")
         if not prop.pointer_mode:
             box = col.box()
             col = box.column(align=True)
-            col.label(text="Show Model:")
+            # col.label(text="Show Model:")
             col.prop(prop, "show_model", text="")
-            col.prop(prop, "show_frame", text="Show Frame", icon="RESTRICT_VIEW_OFF" if prop.show_frame else "RESTRICT_VIEW_ON")
-            col.prop(prop, "show_base_color", text="Show Base Color", icon="RESTRICT_VIEW_OFF" if prop.show_base_color else "RESTRICT_VIEW_ON")
+            col.prop(prop, "show_frame", text="Show Frame", icon="META_PLANE")
+            col.prop(prop, "show_base_color", text="Show Base Color", icon="NODE_MATERIAL")
             self.draw_socket_prop(col, target_node, 2)  # 缩放
             self.draw_socket_prop(col, target_node, 3)  # 缩放x
             self.draw_socket_prop(col, target_node, 4)  # 缩放y
@@ -82,7 +108,22 @@ class NODE_PT_material_debugger_tool(bpy.types.Panel):
         row.prop(socket, "default_value", text=display_text)
 
 
+def draw_shader_header_buttons(self, context):
+    if context.space_data.tree_type != "ShaderNodeTree":
+        return
+
+    layout = self.layout
+
+    # layout.separator()
+
+    row = layout.row(align=True)
+    addon_props = context.scene.mat_debug_tool_properties
+    row.prop(addon_props, "open_debug", text="", icon="SHADERFX")
+    row.operator("node.mouse_pos_tracker", text="", depress=NODE_OT_mouse_pos_tracker._running, icon="CURSOR")
+
+
 cls = [
+    MatDebugToolPreferences,
     NODE_PT_material_debugger_tool,
 ]
 
@@ -90,8 +131,10 @@ cls = [
 def register():
     for c in cls:
         bpy.utils.register_class(c)
+    bpy.types.NODE_HT_header.append(draw_shader_header_buttons)
 
 
 def unregister():
     for c in reversed(cls):
         bpy.utils.unregister_class(c)
+    bpy.types.NODE_HT_header.remove(draw_shader_header_buttons)

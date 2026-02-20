@@ -10,14 +10,7 @@ class VIEW3D_OT_TestOperator(bpy.types.Operator):
     bl_label = "Test Operator"
 
     def execute(self, context):
-        state = bpy.data.materials["Material"].node_tree.nodes["Texture Coordinate"].type
-        props = context.scene.mat_debug_tool_properties
-        # for area in context.screen.areas:
-        #     if area.type == "VIEW_3D":
-        #         for space in area.spaces:
-        #             if space.type == "VIEW_3D":
-        #                 props.viewport_composite_state = space.shading.use_compositor
-        # print(props.viewport_composite_state)
+        state = bpy.data.scenes["Scene"].render.engine
         print(state)
         return {"FINISHED"}
 
@@ -28,6 +21,7 @@ class NODE_OT_connect_to_aov(bpy.types.Operator):
     bl_idname = "node.connect_to_aov"
     bl_label = "Connect to AOV"
     bl_options = {"REGISTER", "UNDO"}
+    bl_description = "Shift+Alt+Click: 循环连接节点输出到 AOV"
 
     @classmethod
     def poll(cls, context):
@@ -48,7 +42,7 @@ class NODE_OT_connect_to_aov(bpy.types.Operator):
         return self.execute(context)
 
     def execute(self, context):
-        print("执行")
+        # print("执行")
         tree = context.space_data.node_tree
         active_node = context.active_node
         if not active_node:

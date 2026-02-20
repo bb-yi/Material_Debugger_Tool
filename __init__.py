@@ -15,8 +15,8 @@ bl_info = {
     "name": "Material Debugger Tool",
     "author": "LEDingQ",
     "description": "",
-    "blender": (2, 80, 0),
-    "version": (0, 0, 1),
+    "blender": (4, 20, 0),
+    "version": (1, 0, 0),
     "location": "",
     "warning": "",
     "category": "Generic",
@@ -56,7 +56,6 @@ def register():
     kc = wm.keyconfigs.addon
     if kc:
         km = kc.keymaps.new(name="Node Editor", space_type="NODE_EDITOR")
-
         # 配置: Shift + Alt + 左键
         kmi = km.keymap_items.new(NODE_OT_connect_to_aov.bl_idname, type="LEFTMOUSE", value="PRESS", shift=True, alt=True)
         addon_keymaps.append((km, kmi))
