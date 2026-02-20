@@ -68,7 +68,7 @@ def save_settings(context):
     props.compositor_use_nodes = context.scene.use_nodes
     # 保存预览节点链接状态
     view_node_state = {}
-    if props.use_compositor:
+    if props.use_compositor and context.scene.node_tree:
         tree = context.scene.node_tree
         view_node = None
         for node in tree.nodes:
@@ -121,10 +121,21 @@ def recovery_settings(context):
     pass
 
 
+def view_settings(context):
+    area = get_max_area()
+    if not area:
+        return
+    for space in area.spaces:
+        if space.type == "VIEW_3D":
+            # space.shading.type = "RENDERED"
+            space.shading.use_compositor = "ALWAYS"
+
+
 def open_debug_update(self, context):
     global _draw_handler
     if self.open_debug:
         save_settings(context)
+        view_settings(context)
         bpy.ops.node.connect_to_aov()
         if _draw_handler is None:
             _draw_handler = bpy.types.SpaceView3D.draw_handler_add(monitor_resize_handler, (), "WINDOW", "POST_PIXEL")
@@ -185,7 +196,6 @@ def pointer_mode_update(self, context):
 
 
 def monitor_resize_handler():
-    # start_time = time.perf_counter()
     global _last_dimensions
     target_area = get_max_area()
     if not target_area:
@@ -194,14 +204,15 @@ def monitor_resize_handler():
     current_dims = (target_area.width, target_area.height)
     if current_dims != _last_dimensions:
         _last_dimensions = current_dims
-        bpy.app.timers.register(update_aspect_ratio, first_interval=0.0)
-    # end_time = time.perf_counter()
-    # execution_time = (end_time - start_time) * 1000
-    # print("执行时间:", execution_time)
+        bpy.app.timers.register(lambda: update_aspect_ratio(current_dims[0], current_dims[1]), first_interval=0.0)
 
 
-def update_aspect_ratio():
-    print("检测到尺寸变化，更新合成器逻辑")
+def update_aspect_ratio(width, height):
+    node = get_compositor_node(bpy.context)
+    if not node:
+        return
+    node.inputs[10].default_value = width / height
+    # print(f"检测到尺寸变化，新的宽高比: {width}x{height}")
 
 
 def get_max_area():

@@ -281,14 +281,6 @@ class NODE_OT_connect_to_aov(bpy.types.Operator):
             tree.links.new(tool_node.outputs[0], view_node.inputs[0])
         return
 
-    def view_settings(self, context):
-        for area in context.screen.areas:
-            if area.type == "VIEW_3D":
-                for space in area.spaces:
-                    if space.type == "VIEW_3D":
-                        space.shading.type = "RENDERED"
-                        space.shading.use_compositor = "ALWAYS"
-
 
 def get_max_3d_region(context):
     """获取当前屏幕上面积最大的 3D 视图的绘制区域 (WINDOW)"""
@@ -345,13 +337,20 @@ class NODE_OT_mouse_pos_tracker(bpy.types.Operator):
         norm_y = rel_y / target_region.height
 
         # 4. 限制在 0-1 之间（如果鼠标移出了 3D 视图范围，将其锁定在边缘）
+        out_of_bounds = rel_x < 0 or rel_x > target_region.width or rel_y < 0 or rel_y > target_region.height
         norm_x = max(0.0, min(1.0, norm_x))
         norm_y = max(0.0, min(1.0, norm_y))
 
         # --- 在这里添加你的写入节点的逻辑 ---
         node = get_compositor_node(context)
-        node.inputs[12].default_value = norm_x
-        node.inputs[13].default_value = norm_y
+        if not node:
+            return
+        if out_of_bounds:
+            node.inputs[12].default_value = 0.5
+            node.inputs[13].default_value = 0.5
+        else:
+            node.inputs[12].default_value = norm_x
+            node.inputs[13].default_value = norm_y
         # print(f"3D View Normalized Pos: ({norm_x:.3f}, {norm_y:.3f})")
 
     def invoke(self, context, event):

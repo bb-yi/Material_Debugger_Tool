@@ -36,20 +36,30 @@ class NODE_PT_material_debugger_tool(bpy.types.Panel):
         # 遍历所有输入端口
         prop = context.scene.mat_debug_tool_properties.node_properties
         col.operator("node.mouse_pos_tracker", text="pointer_mode", depress=NODE_OT_mouse_pos_tracker._running, icon="CURSOR" if NODE_OT_mouse_pos_tracker._running else "MOUSE_LMB")
-
-        col.label(text=f"{target_node.name}", icon="MOD_UVPROJECT")
-
-        box = col.box()
-        col = box.column(align=True)
-        self.draw_socket_prop(col, target_node, 2)
-        self.draw_socket_prop(col, target_node, 3)
-        self.draw_socket_prop(col, target_node, 4)
-        self.draw_socket_prop(col, target_node, 5)
-        self.draw_socket_prop(col, target_node, 6)
-        col.prop(prop, "show_frame", text="Show Frame", icon="RESTRICT_VIEW_OFF" if prop.show_frame else "RESTRICT_VIEW_ON")
-        col.prop(prop, "show_base_color", text="Show Base Color", icon="RESTRICT_VIEW_OFF" if prop.show_base_color else "RESTRICT_VIEW_ON")
-        col.label(text="Show Model:")
-        col.prop(prop, "show_model", text="")
+        if not prop.pointer_mode:
+            box = col.box()
+            col = box.column(align=True)
+            col.label(text="Show Model:")
+            col.prop(prop, "show_model", text="")
+            col.prop(prop, "show_frame", text="Show Frame", icon="RESTRICT_VIEW_OFF" if prop.show_frame else "RESTRICT_VIEW_ON")
+            col.prop(prop, "show_base_color", text="Show Base Color", icon="RESTRICT_VIEW_OFF" if prop.show_base_color else "RESTRICT_VIEW_ON")
+            self.draw_socket_prop(col, target_node, 2)  # 缩放
+            self.draw_socket_prop(col, target_node, 3)  # 缩放x
+            self.draw_socket_prop(col, target_node, 4)  # 缩放y
+            self.draw_socket_prop(col, target_node, 5)  # 数字x缩放
+            self.draw_socket_prop(col, target_node, 6)  # 数字y缩放
+        else:
+            box = col.box()
+            col = box.column(align=True)
+            col.label(text="Show Model:")
+            col.prop(prop, "show_model", text="")
+            self.draw_socket_prop(col, target_node, 5)  # 数字x缩放
+            self.draw_socket_prop(col, target_node, 6)  # 数字y缩放
+            self.draw_socket_prop(col, target_node, 14)  # 指针大小
+            self.draw_socket_prop(col, target_node, 15)  # 指针中间缩放
+            self.draw_socket_prop(col, target_node, 16)  # 指针文字缩放
+            self.draw_socket_prop(col, target_node, 17)  # 指针文字X
+            self.draw_socket_prop(col, target_node, 18)  # 指针文字Y
 
     def draw_socket_prop(self, layout, node, index, text=None, icon="NONE", as_bool=False):
         if index < 0 or index >= len(node.inputs):
