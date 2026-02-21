@@ -1,6 +1,7 @@
 import bpy
 from .utils import *
 from .i18n import translations
+import webbrowser
 
 
 class VIEW3D_OT_TestOperator(bpy.types.Operator):
@@ -343,10 +344,27 @@ class NODE_OT_mouse_pos_tracker(bpy.types.Operator):
         # print("鼠标追踪已关闭")
 
 
+class WM_OT_open_github_page(bpy.types.Operator):
+    bl_idname = "wm.open_github_page"
+    bl_label = "Open GitHub"
+    bl_options = {"REGISTER"}
+
+    github_url: bpy.props.StringProperty(default="https://github.com/bb-yi/Material_Debugger_Tool")
+
+    def execute(self, context):
+        try:
+            webbrowser.open_new_tab(self.github_url)
+            self.report({"INFO"}, translations("Opening GitHub page..."))
+        except Exception as e:
+            self.report({"ERROR"}, f"{translations('Failed to open web browser:')} {e}")
+        return {"FINISHED"}
+
+
 classes = [
     VIEW3D_OT_TestOperator,
     NODE_OT_connect_to_aov,
     NODE_OT_mouse_pos_tracker,
+    WM_OT_open_github_page,
 ]
 
 

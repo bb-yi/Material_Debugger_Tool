@@ -54,8 +54,9 @@ class NODE_PT_material_debugger_tool(bpy.types.Panel):
         col = layout.column(align=True)
         # col.operator("view3d.test_operator", text="Test Operator")
         box = col.box()
-        box.label(text=translations("Shift + Alt + LMB on node to preview"), icon="INFO")
-
+        row = box.row(align=True)
+        row.label(text=translations("Shift + Alt + LMB on node to preview"), icon="INFO")
+        row.operator("wm.open_github_page", text="", icon="URL")
         # col1 = col.row(align=True)
         # col1.alert = True
         # active_node = context.active_node
